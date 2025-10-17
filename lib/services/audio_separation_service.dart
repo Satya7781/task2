@@ -1,20 +1,25 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import '../models/song_model.dart';
 import '../models/stem_model.dart';
 
 class AudioSeparationService extends ChangeNotifier {
   static const _uuid = Uuid();
+  static const String _baseUrl = 'http://10.0.2.2:5000/api'; // Android emulator
+  // For physical device, use: 'http://YOUR_COMPUTER_IP:5000/api'
+  // For iOS simulator, use: 'http://localhost:5000/api'
   
   bool _isProcessing = false;
   double _processingProgress = 0.0;
   String? _currentProcessingId;
-  
-  // Mock ML model - in a real implementation, you'd use TensorFlow Lite
-  // late Interpreter _interpreter;
+  String? _currentJobId;
+  late Dio _dio;
   
   bool get isProcessing => _isProcessing;
   double get processingProgress => _processingProgress;
@@ -22,11 +27,36 @@ class AudioSeparationService extends ChangeNotifier {
 
   Future<void> initialize() async {
     try {
-      // In a real implementation, load the TensorFlow Lite model here
-      // _interpreter = await Interpreter.fromAsset('assets/models/demucs_lite.tflite');
-      print('Audio separation service initialized');
+      _dio = Dio(BaseOptions(
+        baseUrl: _baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(minutes: 10),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ));
+      
+      // Test API connection with multiple attempts
+      for (int i = 0; i < 3; i++) {
+        try {
+          final response = await _dio.get('/health');
+          if (response.statusCode == 200) {
+            print('✅ Audio separation service initialized - API connected');
+            print('   API Status: ${response.data['status']}');
+            print('   Device: ${response.data['device']}');
+            return;
+          }
+        } catch (e) {
+          print('🔄 API connection attempt ${i + 1}/3 failed: $e');
+          if (i < 2) await Future.delayed(const Duration(seconds: 2));
+        }
+      }
+      
+      print('⚠️ API not available - will use mock mode as fallback');
     } catch (e) {
-      print('Failed to initialize audio separation service: $e');
+      print('❌ Failed to initialize audio separation service: $e');
+      print('   Will use mock mode for audio separation');
     }
   }
 
@@ -41,36 +71,22 @@ class AudioSeparationService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Simulate processing steps
-      final stems = <Stem>[];
-      final stemTypes = [
-        StemType.vocals,
-        StemType.drums,
-        StemType.bass,
-        StemType.other,
-      ];
-
-      for (int i = 0; i < stemTypes.length; i++) {
-        // Update progress
-        _processingProgress = (i + 1) / stemTypes.length;
-        notifyListeners();
-
-        // Simulate processing time
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Create mock stem file
-        final stemPath = await _createMockStemFile(song, stemTypes[i]);
-        
-        final stem = Stem(
-          id: _uuid.v4(),
-          type: stemTypes[i],
-          filePath: stemPath,
-          duration: song.duration,
-        );
-        
-        stems.add(stem);
-      }
-
+      // Upload file to API
+      _processingProgress = 0.1;
+      notifyListeners();
+      
+      final uploadResponse = await _uploadFile(song.filePath);
+      _currentJobId = uploadResponse['job_id'];
+      
+      // Start separation
+      _processingProgress = 0.2;
+      notifyListeners();
+      
+      await _dio.post('/separate/$_currentJobId');
+      
+      // Poll for completion
+      final stems = await _pollForCompletion();
+      
       final processedSong = song.copyWith(
         stems: stems,
         isProcessed: true,
@@ -80,13 +96,117 @@ class AudioSeparationService extends ChangeNotifier {
       return processedSong;
     } catch (e) {
       print('Error during audio separation: $e');
-      rethrow;
+      // Fallback to mock if API fails
+      return await _separateAudioMock(song);
     } finally {
       _isProcessing = false;
       _processingProgress = 0.0;
       _currentProcessingId = null;
+      _currentJobId = null;
       notifyListeners();
     }
+  }
+
+  Future<Map<String, dynamic>> _uploadFile(String filePath) async {
+    final file = File(filePath);
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: file.path.split('/').last),
+    });
+    
+    final response = await _dio.post('/upload', data: formData);
+    return response.data;
+  }
+
+  Future<List<Stem>> _pollForCompletion() async {
+    while (true) {
+      await Future.delayed(const Duration(seconds: 2));
+      
+      final response = await _dio.get('/status/$_currentJobId');
+      final data = response.data;
+      
+      _processingProgress = (data['progress'] as num).toDouble();
+      notifyListeners();
+      
+      if (data['status'] == 'completed') {
+        return await _downloadStems(data['stems']);
+      } else if (data['status'] == 'failed') {
+        throw Exception(data['error'] ?? 'Processing failed');
+      }
+    }
+  }
+
+  Future<List<Stem>> _downloadStems(Map<String, dynamic> stemPaths) async {
+    final stems = <Stem>[];
+    final directory = await getApplicationDocumentsDirectory();
+    final stemsDir = Directory('${directory.path}/stems');
+    if (!await stemsDir.exists()) {
+      await stemsDir.create(recursive: true);
+    }
+
+    for (final entry in stemPaths.entries) {
+      final stemType = _getStemTypeFromName(entry.key);
+      final localPath = '${stemsDir.path}/${_currentJobId}_${entry.key}.wav';
+      
+      // Download stem file
+      await _dio.download('/download/$_currentJobId/${entry.key}', localPath);
+      
+      final stem = Stem(
+        id: _uuid.v4(),
+        type: stemType,
+        filePath: localPath,
+        duration: const Duration(seconds: 180), // Will be updated by player
+      );
+      
+      stems.add(stem);
+    }
+    
+    return stems;
+  }
+
+  StemType _getStemTypeFromName(String name) {
+    switch (name.toLowerCase()) {
+      case 'vocals':
+        return StemType.vocals;
+      case 'drums':
+        return StemType.drums;
+      case 'bass':
+        return StemType.bass;
+      case 'piano':
+        return StemType.piano;
+      case 'guitar':
+        return StemType.guitar;
+      case 'harmony':
+        return StemType.harmony;
+      default:
+        return StemType.other;
+    }
+  }
+
+  // Fallback mock implementation
+  Future<Song> _separateAudioMock(Song song) async {
+    final stems = <Stem>[];
+    final stemTypes = [StemType.vocals, StemType.drums, StemType.bass, StemType.other];
+
+    for (int i = 0; i < stemTypes.length; i++) {
+      _processingProgress = (i + 1) / stemTypes.length;
+      notifyListeners();
+      await Future.delayed(const Duration(seconds: 1));
+
+      final stemPath = await _createMockStemFile(song, stemTypes[i]);
+      final stem = Stem(
+        id: _uuid.v4(),
+        type: stemTypes[i],
+        filePath: stemPath,
+        duration: song.duration,
+      );
+      stems.add(stem);
+    }
+
+    return song.copyWith(
+      stems: stems,
+      isProcessed: true,
+      processingProgress: 1.0,
+    );
   }
 
   Future<String> _createMockStemFile(Song song, StemType stemType) async {

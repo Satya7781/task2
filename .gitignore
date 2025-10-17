@@ -142,3 +142,33 @@ coverage/
 *.freezed.dart
 *.mocks.dart
 *.config.dart
+
+# Audio separation temporary files
+python_backend/uploads/
+python_backend/outputs/
+separated_audio/
+demo_results/
+batch_results/
+results/
+
+# AI model cache
+ai_env/
+.demucs/
+*.pth
+
+# Audio files (exclude large test files)
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.aac
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/

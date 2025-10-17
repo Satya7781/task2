@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Song Splitter - Demo</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        .audio-player {
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+        }
+        .stem-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stem-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white py-6">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-music text-3xl"></i>
+                    <h1 class="text-3xl font-bold">AI Song Splitter</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="health-status" class="flex items-center space-x-2">
+                        <div class="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+                        <span class="text-sm">Checking API...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Upload Section -->
+        <div class="bg-white rounded-lg card-shadow p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-upload mr-3 text-blue-500"></i>
+                Upload Audio File
+            </h2>
+            
+            <div id="upload-area" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                <p class="text-lg text-gray-600 mb-2">Drop your audio file here or click to browse</p>
+                <p class="text-sm text-gray-500">Supports MP3, WAV, M4A, FLAC, AAC (Max 50MB)</p>
+                <input type="file" id="file-input" class="hidden" accept=".mp3,.wav,.m4a,.flac,.aac">
+            </div>
+
+            <div id="file-info" class="hidden mt-4 p-4 bg-blue-50 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-file-audio text-blue-500"></i>
+                        <div>
+                            <p id="file-name" class="font-medium"></p>
+                            <p id="file-size" class="text-sm text-gray-600"></p>
+                        </div>
+                    </div>
+                    <button id="upload-btn" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-upload mr-2"></i>Upload
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Section -->
+        <div id="processing-section" class="hidden bg-white rounded-lg card-shadow p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-cogs mr-3 text-green-500"></i>
+                Processing Status
+            </h2>
+            
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span id="status-text" class="text-lg font-medium">Uploading...</span>
+                    <span id="progress-percent" class="text-sm text-gray-600">0%</span>
+                </div>
+                
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div id="progress-bar" class="progress-bar bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full" style="width: 0%"></div>
+                </div>
+                
+                <div id="processing-steps" class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div class="step-item flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+                        <i class="fas fa-upload step-icon text-gray-400"></i>
+                        <span class="step-text text-gray-600">Upload File</span>
+                    </div>
+                    <div class="step-item flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+                        <i class="fas fa-magic step-icon text-gray-400"></i>
+                        <span class="step-text text-gray-600">AI Separation</span>
+                    </div>
+                    <div class="step-item flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+                        <i class="fas fa-chart-line step-icon text-gray-400"></i>
+                        <span class="step-text text-gray-600">Quality Analysis</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="hidden bg-white rounded-lg card-shadow p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                <i class="fas fa-music mr-3 text-purple-500"></i>
+                Separated Stems
+            </h2>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div class="flex items-start space-x-3">
+                    <i class="fas fa-info-circle text-blue-500 mt-1"></i>
+                    <div>
+                        <h4 class="font-medium text-blue-800">Demo Mode</h4>
+                        <p class="text-sm text-blue-700">
+                            This is a demonstration. Each stem plays a different musical tone to simulate separated audio tracks. 
+                            In the full version, you would hear actual separated vocals, drums, bass, and other instruments.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="stems-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Stems will be populated here -->
+            </div>
+        </div>
+
+        <!-- Quality Metrics Section -->
+        <div id="quality-section" class="hidden bg-white rounded-lg card-shadow p-6">
+            <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                <i class="fas fa-chart-bar mr-3 text-orange-500"></i>
+                Quality Analysis
+            </h2>
+            
+            <div id="quality-metrics" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Quality metrics will be populated here -->
+            </div>
+        </div>
+
+        <!-- Jobs History -->
+        <div class="bg-white rounded-lg card-shadow p-6 mt-8">
+            <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-history mr-3 text-gray-500"></i>
+                Processing History
+            </h2>
+            
+            <div id="jobs-list" class="space-y-3">
+                <!-- Jobs will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Player Modal -->
+    <div id="audio-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="modal-title" class="text-lg font-semibold">Audio Player</h3>
+                <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="audio-player rounded-lg p-4">
+                <audio id="audio-player" controls class="w-full">
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
