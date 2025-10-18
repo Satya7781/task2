@@ -135,13 +135,13 @@ print_status $BLUE "🚀 Quick Start Commands:"
 echo "========================"
 
 echo "📱 Web Demo (Recommended):"
-echo "   ./start_demo.sh"
+echo "   ./scripts/start_demo.sh"
 echo "   Open http://localhost:8080"
 echo ""
 
 if [ "$AI_INSTALLED" = true ]; then
     echo "🤖 Full AI Processing:"
-    echo "   ./start_real_ai.sh"
+    echo "   ./scripts/start_real_ai.sh"
     echo ""
 fi
 
@@ -152,8 +152,8 @@ if [ "$FLUTTER_AVAILABLE" = true ]; then
 fi
 
 echo "⚡ Command Line:"
-echo "   python3 batch_separate.py sample_audio.mp3"
+echo "   python3 tools/batch_separate.py sample_audio.mp3"
 echo ""
 
 print_status $GREEN "🎉 Setup completed successfully!"
-print_status $BLUE "📖 See SETUP_GUIDE.md for detailed instructions"
+print_status $BLUE "📖 See docs/SETUP_GUIDE.md for detailed instructions"

@@ -38,14 +38,14 @@ chmod +x setup.sh && ./setup.sh
 
 ### **Option 1: Web Demo (Easiest)**
 ```bash
-./start_demo.sh
+./scripts/start_demo.sh
 # Open http://localhost:8080
 ```
 
 ### **Option 2: Mobile App**
 ```bash
 # Terminal 1
-./start_real_ai.sh
+./scripts/start_real_ai.sh
 
 # Terminal 2  
 flutter run
@@ -53,7 +53,7 @@ flutter run
 
 ### **Option 3: Command Line**
 ```bash
-python3 batch_separate.py your_song.mp3
+python3 tools/batch_separate.py your_song.mp3
 ```
 
 ## 📱 **What You Can Do**
@@ -123,15 +123,15 @@ flutter pub get
 
 ## 📖 **Documentation**
 
-- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete setup instructions
-- **[PROJECT_README.md](PROJECT_README.md)** - Technical documentation  
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
-- **[SUBMISSION_SUMMARY.md](SUBMISSION_SUMMARY.md)** - Project deliverables
+- **[SETUP_GUIDE.md](docs/SETUP_GUIDE.md)** - Complete setup instructions
+- **[PROJECT_README.md](docs/PROJECT_README.md)** - Technical documentation  
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[SUBMISSION_SUMMARY.md](docs/SUBMISSION_SUMMARY.md)** - Project deliverables
 
 ## 🎯 **Usage Examples**
 
 ### **Web Demo**
-1. Run `./start_demo.sh`
+1. Run `./scripts/start_demo.sh`
 2. Open http://localhost:8080
 3. Drag & drop audio file
 4. Wait for processing (6 seconds demo / 30s-5min real AI)
@@ -140,17 +140,17 @@ flutter pub get
 ### **Command Line**
 ```bash
 # Single file
-python3 batch_separate.py song.mp3
+python3 tools/batch_separate.py song.mp3
 
 # Batch processing
-python3 batch_separate.py /music/folder --parallel 4
+python3 tools/batch_separate.py /music/folder --parallel 4
 
 # Advanced options
-python3 batch_separate.py *.mp3 --model htdemucs_6s --analyze
+python3 tools/batch_separate.py *.mp3 --model htdemucs_6s --analyze
 ```
 
 ### **Mobile App**
-1. Start API: `./start_real_ai.sh`
+1. Start API: `./scripts/start_real_ai.sh`
 2. Run app: `flutter run`
 3. Select audio file
 4. Monitor processing progress
@@ -177,7 +177,19 @@ python3 batch_separate.py *.mp3 --model htdemucs_6s --analyze
 ├── demo_web/               # Web interface
 ├── lib/                    # Flutter mobile app
 ├── android/                # Android configuration
-├── batch_separate.py       # Command-line tool
+├── ios/                    # iOS configuration
+├── tools/                  # Command-line tools
+│   ├── batch_separate.py   # Main batch processing tool
+│   ├── batch_process.py    # Alternative processing script
+│   └── test_api.py         # API testing tool
+├── scripts/                # Utility scripts
+│   ├── start_demo.sh       # Start web demo
+│   ├── start_real_ai.sh    # Start full AI processing
+│   └── debug_and_fix.sh    # Diagnostic tool
+├── docs/                   # Documentation
+│   ├── PROJECT_README.md   # Technical documentation
+│   ├── SETUP_GUIDE.md      # Setup instructions
+│   └── TROUBLESHOOTING.md  # Common issues
 └── setup.sh               # One-command setup
 ```
 
